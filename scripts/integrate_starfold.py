@@ -25,7 +25,16 @@ patched="""            // No visible Remote Play picture in translator-only mode
 code=view.read_text()
 if "REBOXTranslatorOverlay(renderer:" not in code:
     if code.count(needle)!=1: sys.exit("StreamPicture injection anchor mismatch")
-    view.write_text(code.replace(needle,patched,1))
+    code=code.replace(needle,patched,1)
+    # Translator-only client: hide touch gamepad buttons while retaining
+    # Microsoft's pairing, stream lifecycle and controller-routing machinery.
+    controls="""            if let touchControlsViewModel = streamViewModel.touchControlsViewModel {
+                touchLayer(touchControlsViewModel)
+            }
+"""
+    if controls in code:
+        code=code.replace(controls, "            // Physical Xbox controller stays on the console; no phone gamepad UI.\n", 1)
+    view.write_text(code)
 code=renderer.read_text()
 old="let lastFrameMaximumWidth: CGFloat = 640"
 new="let lastFrameMaximumWidth: CGFloat = 1280"
