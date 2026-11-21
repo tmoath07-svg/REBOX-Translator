@@ -1,0 +1,27 @@
+name: REBOX Translator Tests
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test Starfold source patch and camera-free implementation
+        run: python3 -m unittest discover -s tests -v
+      - name: Validate LG app metadata
+        run: python3 -m json.tool LGReceiver/appinfo.json > /dev/null
+      - name: Validate LG receiver JavaScript
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          html=Path("LGReceiver/index.html").read_text()
+          code=re.search(r"<script>(.*?)</script>", html, re.S)
+          if not code:
+              raise SystemExit("LG script missing")
+          Path("/tmp/rebox-receiver.js").write_text(code.group(1))
+          PY
+          node --check /tmp/rebox-receiver.js
