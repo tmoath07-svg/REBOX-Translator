@@ -19,8 +19,8 @@ needle="""            StreamPicture(
                 renderer: streamViewModel.renderer,
                 isVisible: streamViewModel.hasFirstFrame
             )"""
-patched=needle+"""
-
+patched="""            // No visible Remote Play picture in translator-only mode.
+            // StreamKit still decodes and stores console video frames for OCR.
             REBOXTranslatorOverlay(renderer: streamViewModel.renderer)"""
 code=view.read_text()
 if "REBOXTranslatorOverlay(renderer:" not in code:
@@ -36,4 +36,4 @@ for name in ["REBOXTranslatorOverlay.swift","REBOXCaptionBridge.swift","REBOXTVH
     p=source/name
     if not p.is_file(): sys.exit("Missing source: "+name)
     shutil.copy2(p,view.parent/name)
-print("REBOX: installed direct-frame OCR, translation and local LG subtitle server")
+print("REBOX: installed headless-visible Xbox frame OCR and text-only translator view; source video remains internal")
