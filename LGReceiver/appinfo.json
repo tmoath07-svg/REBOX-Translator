@@ -5,6 +5,7 @@
   "type": "web",
   "main": "index.html",
   "title": "REBOX Translator LG",
+  "icon": "icon.png",
   "resolution": "1920x1080",
   "transparent": true,
   "defaultWindowType": "overlay",
