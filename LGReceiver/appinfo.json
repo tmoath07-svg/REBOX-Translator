@@ -1,0 +1,12 @@
+{
+  "id": "com.tmoath07.reboxtranslator.lg",
+  "version": "0.1.0",
+  "vendor": "REBOX Translator",
+  "type": "web",
+  "main": "index.html",
+  "title": "REBOX Translator LG",
+  "resolution": "1920x1080",
+  "transparent": true,
+  "defaultWindowType": "overlay",
+  "appDescription": "Free experimental webOS subtitle overlay for compatible LG TVs"
+}
