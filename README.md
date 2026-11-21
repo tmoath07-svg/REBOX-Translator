@@ -5,7 +5,7 @@ A **separate, free, open-source project**. It is NOT an update to the old REBOX 
 ## Architecture
 
 1. GitHub Actions downloads the pinned, MIT-licensed [Starfold](https://github.com/JarvanSun/Starfold) Xbox Remote Play client at a specific commit.
-2. Our build-time Python script injects a native SwiftUI REBOX translation layer into Starfold's existing Xbox stream screen.
+2. Our build-time Python script reuses Starfold's Xbox authentication and internal Remote Play decoder, **replaces the visible game video with a subtitle-only screen**, and does not show a virtual gamepad.
 3. Apple Vision OCR reads frames returned by `StreamRenderer.lastFrameImage()`. No iPhone camera is used.
 4. Apple Translation translates English→Arabic on-device (download the language models when prompted). Other selectable source/target pairs include German→English.
 5. A local TCP HTTP server selects a free port automatically (avoids NWError 48) and exposes `/tv` and `/state` endpoints on the user's home Wi-Fi.
@@ -14,10 +14,10 @@ A **separate, free, open-source project**. It is NOT an update to the old REBOX 
 ## Device workflow
 
 1. Install a successfully built and signed unsigned IPA from the **Build REBOX Translator iOS** GitHub workflow.
-2. Connect to your Xbox in Remote Play and wait for actual video.
-3. Open the **REBOX ترجمة** toolbar; choose English→Arabic, prepare/download Apple's models and enable automatic OCR.
+2. Sign in with Microsoft and select your Xbox for a Remote Play session. The video is received internally for OCR **but is not shown on the iPhone**; an active Xbox stream is still necessary.
+3. The **REBOX ترجمة** subtitle-only screen automatically starts OCR when a stream arrives. Pick English→Arabic and approve Apple's free language-model download if requested.
 4. Copy the local TV URL and open it in your LG browser (same Wi-Fi).
-5. Adjust the OCR area to cover the game's captions; TV browser displays translated text that the app sends.
+5. Adjust the proportional OCR rectangle to the lower subtitle area. The phone shows recognized/translated text only; the LG browser receives translated text. The app must remain open in the foreground.
 
 **No camera, no copy/paste, no paid API, no in-app purchase or subscription** in the application source. First-time Apple language downloads require iOS support, storage, internet and permission. Microsoft's Xbox connection remains necessary.
 
