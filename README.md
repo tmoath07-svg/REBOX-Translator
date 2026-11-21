@@ -1,43 +1,46 @@
-# REBOX Translator — Xbox subtitle translation without a camera
+# GAME SUB — مترجم Xbox مستقل
 
-A **separate, free, open-source project**. It is NOT an update to the old REBOX repository.
+**تطبيق iPhone وiPad جديد بواجهة SwiftUI خاصة به.** لا يعرض فيديو Xbox أو واجهة Starfold على الجوال. لا يستخدم الكاميرا ولا يطلب نسخ ولصق النصوص.
 
-## Architecture
+## تحميل النسخة الجديدة
 
-1. GitHub Actions downloads the pinned, MIT-licensed [Starfold](https://github.com/JarvanSun/Starfold) Xbox Remote Play client at a specific commit.
-2. Our build-time Python script reuses Starfold's Xbox authentication and internal Remote Play decoder, **replaces the visible game video with a subtitle-only screen**, and does not show a virtual gamepad.
-3. Apple Vision OCR reads frames returned by `StreamRenderer.lastFrameImage()`. No iPhone camera is used.
-4. Apple Translation translates English→Arabic on-device (download the language models when prompted). Other selectable source/target pairs include German→English.
-5. A local TCP HTTP server selects a free port automatically (avoids NWError 48) and exposes `/tv` and `/state` endpoints on the user's home Wi-Fi.
-6. Open the `/tv` URL in LG webOS's browser. An optional separate LG webOS IPK receiver can be built from `LGReceiver`.
+**[GAME SUB iOS — Successful Build #44923315039](https://github.com/tmoath07-svg/REBOX-Translator/actions/runs/44923315039)**
 
-## Device workflow
+من قسم **Artifacts** حمّل `GAME-SUB-iPhone-iPad-unsigned-IPA`، فك ZIP، ثم وقّع `GAME-SUB-unsigned.ipa` بشهادة iOS صالحة عبر ESign.
 
-1. Install a successfully built and signed unsigned IPA from the **Build REBOX Translator iOS** GitHub workflow.
-2. Sign in with Microsoft and select your Xbox for a Remote Play session. The video is received internally for OCR **but is not shown on the iPhone**; an active Xbox stream is still necessary.
-3. The **REBOX ترجمة** subtitle-only screen automatically starts OCR when a stream arrives. Pick English→Arabic and approve Apple's free language-model download if requested.
-4. Copy the local TV URL and open it in your LG browser (same Wi-Fi).
-5. Adjust the proportional OCR rectangle to the lower subtitle area. The phone shows recognized/translated text only; the LG browser receives translated text. The app must remain open in the foreground.
+اسم التطبيق: **GAME SUB**. المعرّف المستقل: `com.tmoath07.gamesub`. النسخة: **1.0.0**.
 
-**No camera, no copy/paste, no paid API, no in-app purchase or subscription** in the application source. First-time Apple language downloads require iOS support, storage, internet and permission. Microsoft's Xbox connection remains necessary.
+## التصميم الفعلي
 
-## HDMI compatibility
+1. `NativeApp/Sources/GameSubApp.swift` — تطبيق مستقل جديد، مع شاشة تسجيل Microsoft عبر رمز الجهاز، البحث عن Xbox واختيار الجهاز، والاتصال التلقائي عندما يوجد جهاز واحد فقط.
+2. `NativeApp/Sources/GameSubTranslator.swift` — يستقبل الإطارات من `StreamRenderer.lastFrameImage()` داخليًا بدون عرضها. Apple Vision يقرأ نص الشاشة باستخدام منطقة نسبية قابلة للتعديل، ثم Apple Translation يترجمه ويعرض **النص المترجم فقط**.
+3. `NativeApp/Sources/CaptionRelay.swift` — خادم HTTP على شبكة Wi-Fi المحلية، بمنفذ حر تلقائي وتحديث نص الترجمة.
+4. `NativeApp/Sources/TVReceiverPage.swift` — رابط `/tv` الذي يعرض الترجمة العربية في متصفح LG، مع تجربة اختيار HDMI 1–4 غير مضمونة.
+5. `NativeApp/project.yml` و `.github/workflows/build-standalone.yml` — مشروع iOS منفصل يعمل عبر GitHub Actions لبناء IPA بدون ماك شخصي.
 
-The built-in LG browser *may not* support embedded `ext://hdmi:N` alongside the page. Simply switching to Xbox HDMI closes the browser's page in many LG models. The LG webOS IPK requests a transparent overlay but whether it actually overlays live hardware HDMI depends on model/firmware/permissions. **Never treat successful compilation as proof of full HDMI overlay.**
+**المحرك المفتوح:** يستخدم مكتبات [Starfold](https://github.com/JarvanSun/Starfold) (MIT) لتسجيل الدخول واتصال Xbox والاستقبال الداخلي. لا يبني Starfold كواجهة تطبيق ولا يغير اسمه؛ مصدر GAME SUB المنفصل موجود بالكامل في `NativeApp/`.
 
-The native Xbox-to-LG text transport does not depend on HDMI capture: the iOS app reads frames from the existing native Remote Play stream, not the HDMI cable.
+## طريقة الاستخدام
 
-## Build from GitHub (no computer)
+- افتح GAME SUB وسجّل حساب Microsoft/Xbox. اختر Xbox إذا ظهر أكثر من واحد.
+- يبدأ الاتصال بـ Remote Play؛ لا تظهر صورة اللعبة على الجوال؛ تظهر حالة الاتصال والنص المترجم فقط.
+- اختر English → العربية، ووافق على تنزيل حزم Apple Translation عند الحاجة من إعدادات اللغات.
+- حدد منطقة النص من المخطط المصغّر (مربع أزرق، من دون عرض فيديو اللعبة).
+- انسخ رابط LG من التطبيق وافتحه في متصفح التلفزيون على نفس الشبكة.
+- يجب إبقاء التطبيق مفتوحًا في المقدمة؛ قفل الشاشة أو تحويل التطبيق للخلفية قد يوقف البث في iOS.
 
-- `.github/workflows/check.yml`: unit/static tests.
-- `.github/workflows/build-ios.yml`: builds an **unsigned** `REBOX-Translator-unsigned.ipa` using Xcode 27 on a GitHub macOS runner.
-- `.github/workflows/build-lg.yml`: packages an experimental `.ipk` for compatible LG webOS TVs.
-- Signing an iOS IPA needs the user's own allowed signing arrangement (such as ESign or SideStore). The workflow does not include certificates.
+## حدود يلزم اختبارها على الأجهزة الحقيقية
 
-Pinned Starfold commit: `1d30a4c08042f78df5ce70750922374ef1612a1f` (MIT). See [third-party notices](THIRD_PARTY_NOTICES.md) and [hardware test plan](docs/TEST_PLAN.md).
+- **النجاح المؤكد:** إنشاء التطبيق المستقل، اختبارات المصدر، بناء Xcode، وصناعة IPA غير موقّع.
+- **غير مثبت حتى الآن:** تسجيل Xbox الحقيقي، استقبال نصوص ألعاب فعلية، ترجمتها، واستمرار العرض على مدخل HDMI في LG أثناء اتصال Remote Play.
+- **LG HDMI:** المتصفح العادي قد لا يستطيع دمج HTML مع صورة HDMI الحية. الرابط يعرض الترجمة عندما تفتح الصفحة؛ لا يضمن تثبيت الكلام فوق مدخل HDMI الأصلي. وقد يتطلب الأمر مستقبل webOS مناسبًا للموديل/البرمجيات.
+- ترجمة Apple مجانية لكنها تعتمد على توفر زوج اللغات وموافقة الجهاز على تنزيل النماذج.
+- لم تُضف أي خدمة API مدفوعة أو اشتراك أو إذن كاميرا.
 
-## Test status
+## ملفات تجريبية قديمة
 
-The Python integration script and static tests are included and should run on every push. **Native IPA compilation and gameplay translation must be verified in GitHub Actions and on actual Xbox/LG hardware.** If the build fails, the workflow logs are the source of truth and will be repaired; no pretend-success IPA.
+الملفات الأقدم تحت `ios/` و`scripts/` ليست تطبيق GAME SUB الجديد. لا تستخدم Workflow القديم `Build REBOX Translator iOS` لتنزيل النسخة الجديدة. استخدم **Build GAME SUB Standalone iOS** فقط.
 
-Original code is under MIT. REBOX Translator is independent and not endorsed by Apple, LG, Microsoft or Starfold contributors.
+## الإسناد
+
+[Starfold (MIT)](https://github.com/JarvanSun/Starfold) — مكتبات Xbox/StreamKit; راجع [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). GAME SUB مشروع مستقل وغير تابع رسميًا لـ Microsoft أو LG أو Apple.
