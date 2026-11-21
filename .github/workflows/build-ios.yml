@@ -1,0 +1,71 @@
+name: Build REBOX Translator iOS
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'ios/**'
+      - 'scripts/**'
+      - '.github/workflows/build-ios.yml'
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'ios/**'
+      - 'scripts/**'
+      - '.github/workflows/build-ios.yml'
+permissions:
+  contents: read
+concurrency:
+  group: rebox-translator-ios-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: xcode-27
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify Xcode 27 toolchain
+        run: xcodebuild -version
+      - name: Obtain pinned MIT-licensed Starfold Xbox Remote Play source
+        run: |
+          set -euo pipefail
+          git clone --filter=blob:none --no-checkout https://github.com/JarvanSun/Starfold.git StarfoldUpstream
+          cd StarfoldUpstream
+          git checkout 1d30a4c08042f78df5ce70750922374ef1612a1f
+          test -f LICENSE
+          test -f Starfold.xcodeproj/project.pbxproj
+      - name: Inject REBOX native Xbox frame OCR + Apple translation
+        run: python3 scripts/integrate_starfold.py --upstream StarfoldUpstream
+      - name: Resolve Swift packages
+        run: |
+          xcodebuild -resolvePackageDependencies \
+            -project StarfoldUpstream/Starfold.xcodeproj -scheme StarfoldiOS
+      - name: Compile iPhone and iPad app (unsigned)
+        run: |
+          set -euo pipefail
+          xcodebuild \
+            -project StarfoldUpstream/Starfold.xcodeproj \
+            -scheme StarfoldiOS \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$PWD/build" \
+            CODE_SIGNING_ALLOWED=NO build 2>&1 | tee build.log | tail -90
+      - name: Package unsigned IPA with a separate bundle identifier
+        run: |
+          set -euo pipefail
+          APP=$(find build/Build/Products/Release-iphoneos -maxdepth 1 -type d -name '*.app' -print -quit)
+          test -n "$APP"
+          /usr/libexec/PlistBuddy -c 'Set :CFBundleIdentifier com.tmoath07.reboxtranslator' "$APP/Info.plist"
+          /usr/libexec/PlistBuddy -c 'Set :CFBundleDisplayName REBOX Translator' "$APP/Info.plist" || \
+            /usr/libexec/PlistBuddy -c 'Add :CFBundleDisplayName string REBOX Translator' "$APP/Info.plist"
+          /usr/libexec/PlistBuddy -c 'Add :NSLocalNetworkUsageDescription string Send subtitles to your LG TV over local Wi-Fi.' "$APP/Info.plist" || true
+          mkdir -p dist/Payload
+          cp -R "$APP" dist/Payload/
+          (cd dist && zip -qr REBOX-Translator-unsigned.ipa Payload)
+          test -s dist/REBOX-Translator-unsigned.ipa
+      - uses: actions/upload-artifact@v4
+        with:
+          name: REBOX-Translator-unsigned-IPA
+          path: dist/REBOX-Translator-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 14
