@@ -1,0 +1,64 @@
+name: Build GAME SUB Standalone iOS
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'NativeApp/**'
+      - '.github/workflows/build-standalone.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: gamesub-native-main
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: xcode-27
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate independent application source
+        run: python3 -m unittest discover -s NativeApp/Tests -v
+      - name: Download Xbox transport libraries (pinned MIT licensed Starfold)
+        run: |
+          set -euo pipefail
+          git clone --filter=blob:none --no-checkout https://github.com/JarvanSun/Starfold.git NativeApp/Upstream
+          git -C NativeApp/Upstream checkout 1d30a4c08042f78df5ce70750922374ef1612a1f
+          test -f NativeApp/Upstream/LICENSE
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate independent iOS target (not Starfold UI)
+        run: |
+          cd NativeApp
+          xcodegen generate
+          grep -q 'GameSub' GameSub.xcodeproj/project.pbxproj
+      - name: Resolve Xbox library packages
+        run: xcodebuild -resolvePackageDependencies -project NativeApp/GameSub.xcodeproj -scheme GameSub
+      - name: Compile fresh GAME SUB iOS application
+        run: |
+          set -euo pipefail
+          xcodebuild -project NativeApp/GameSub.xcodeproj -scheme GameSub \
+            -sdk iphoneos -destination 'generic/platform=iOS' \
+            -configuration Release -derivedDataPath "$PWD/build-gamesub" \
+            CODE_SIGNING_ALLOWED=NO build 2>&1 | tee gamesub-build.log | tail -100
+      - name: Verify output is independent app without camera
+        run: |
+          set -euo pipefail
+          APP="build-gamesub/Build/Products/Release-iphoneos/GameSub.app"
+          test -d "$APP"
+          BUNDLE=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$APP/Info.plist")
+          test "$BUNDLE" = "com.tmoath07.gamesub"
+          if /usr/libexec/PlistBuddy -c 'Print :NSCameraUsageDescription' "$APP/Info.plist"; then exit 1; fi
+      - name: Package unsigned IPA for ESign
+        run: |
+          set -euo pipefail
+          mkdir -p dist/Payload
+          ditto build-gamesub/Build/Products/Release-iphoneos/GameSub.app dist/Payload/GameSub.app
+          (cd dist && zip -qry GAME-SUB-unsigned.ipa Payload)
+          test -s dist/GAME-SUB-unsigned.ipa
+      - uses: actions/upload-artifact@v4
+        with:
+          name: GAME-SUB-iPhone-iPad-unsigned-IPA
+          path: dist/GAME-SUB-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 14
