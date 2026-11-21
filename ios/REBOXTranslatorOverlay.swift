@@ -9,7 +9,9 @@ import UIKit
 struct REBOXTranslatorOverlay: View {
     let renderer: StreamRenderer?
     @StateObject private var bridge = REBOXCaptionBridge()
-    @State private var enabled = false
+    @State private var enabled = true
+    @State private var xboxFramesArrived = false
+    @State private var translatedText = ""
     @State private var settingsOpen = false
     @State private var editingArea = false
     @State private var crop = CGRect(x: 0.08, y: 0.76, width: 0.84, height: 0.20)
@@ -27,7 +29,48 @@ struct REBOXTranslatorOverlay: View {
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
+            LinearGradient(
+                colors: [Color(red: 0.03, green: 0.05, blue: 0.11), Color.black],
+                startPoint: .top, endPoint: .bottom
+            )
+            .ignoresSafeArea()
+
+            // The Xbox video is never displayed on the phone. We only
+            // display text extracted from the internally decoded stream.
+            VStack(spacing: 18) {
+                Spacer(minLength: 55)
+                Image(systemName: "captions.bubble.fill")
+                    .font(.system(size: 43))
+                    .foregroundStyle(cyan)
+                Text("مترجم Xbox")
+                    .font(.title2.bold())
+                    .foregroundStyle(.white)
+                Text(xboxFramesArrived ? "بث Xbox متصل — قراءة النصوص فعّالة" : "بانتظار اتصال Xbox وبداية البث")
+                    .font(.caption)
+                    .foregroundStyle(xboxFramesArrived ? Color.green : Color.orange)
+                if translatedText.isEmpty {
+                    Text("بتظهر الترجمة العربية هنا بدون عرض صورة اللعبة")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                } else {
+                    Text(translatedText)
+                        .font(.system(size: 25, weight: .semibold))
+                        .multilineTextAlignment(.center)
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 25)
+                }
+                Spacer(minLength: 30)
+                Text("عرض الترجمة على LG عبر رابط الشبكة — إبقاء التطبيق مفتوحًا")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .padding(.bottom, 18)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .allowsHitTesting(false)
+
             if editingArea && enabled { cropView }
+
             VStack(alignment: .trailing, spacing: 8) {
                 Button { settingsOpen.toggle() } label: {
                     Label("REBOX ترجمة", systemImage: "character.bubble")
@@ -46,6 +89,7 @@ struct REBOXTranslatorOverlay: View {
             guard enabled else { return }
             while !Task.isCancelled {
                 if let image = renderer?.lastFrameImage() {
+                    xboxFramesArrived = true
                     recognize(image)
                 } else {
                     message = "ما وصلنا بث فيديو من Xbox للحين."
@@ -72,6 +116,7 @@ struct REBOXTranslatorOverlay: View {
                     cache[cacheKey(text)] = translated
                 }
                 bridge.setSubtitle(translated)
+                translatedText = translated
                 message = "تم إرسال الترجمة للتلفزيون."
             } catch {
                 prepareLanguages = false
@@ -90,7 +135,7 @@ struct REBOXTranslatorOverlay: View {
                 .font(.headline).foregroundStyle(cyan)
             Toggle("الترجمة التلقائية", isOn: $enabled)
                 .tint(.green)
-            Text("قراءة مباشرة من إطارات Remote Play داخل التطبيق.")
+            Text("البث يدخل داخليًا لتحليل النصوص فقط، والصورة ما تظهر على الجوال.")
                 .font(.caption).foregroundStyle(.gray)
             HStack {
                 Picker("من", selection: $source) {
@@ -206,6 +251,7 @@ struct REBOXTranslatorOverlay: View {
             lastRecognized = text
             if let stored = cache[cacheKey(text)] {
                 bridge.setSubtitle(stored)
+                translatedText = stored
                 message = "ترجمة محفوظة؛ تم الإرسال."
             } else {
                 pending = text
