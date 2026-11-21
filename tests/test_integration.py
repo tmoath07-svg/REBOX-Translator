@@ -44,6 +44,11 @@ class IntegrationTests(unittest.TestCase):
             subprocess.run(cmd, check=True, capture_output=True)
             subprocess.run(cmd, check=True, capture_output=True)
             self.assertEqual(a.read_text().count("REBOXTranslatorOverlay(renderer:"), 1)
+            self.assertNotIn("StreamPicture(", a.read_text())
+            self.assertIn("no phone gamepad UI", (ROOT/"scripts/integrate_starfold.py").read_text())
+            overlay = (ROOT/"ios/REBOXTranslatorOverlay.swift").read_text()
+            self.assertIn("translatedText", overlay)
+            self.assertIn("lastFrameImage()", overlay)
             self.assertIn("CGFloat = 1280", b.read_text())
             for name in ["REBOXTranslatorOverlay.swift","REBOXCaptionBridge.swift","REBOXTVHTML.swift"]:
                 self.assertTrue((a.parent/name).is_file())
