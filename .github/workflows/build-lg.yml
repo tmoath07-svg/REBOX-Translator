@@ -1,0 +1,32 @@
+name: Build REBOX Translator LG webOS IPK
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'LGReceiver/**'
+      - '.github/workflows/build-lg.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Validate LG application
+        run: python3 -m json.tool LGReceiver/appinfo.json > /dev/null
+      - name: Install webOS CLI and package app
+        run: |
+          npm install -g @webos-tools/cli
+          mkdir -p dist
+          ares-package LGReceiver -o dist
+          test -n "$(find dist -maxdepth 1 -type f -name '*.ipk' -print -quit)"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: REBOX-Translator-LG-webOS-IPK
+          path: dist/*.ipk
+          if-no-files-found: error
